@@ -6,6 +6,7 @@ require (
 	github.com/Azure/azure-pipeline-go v0.0.0-20180607212504-7571e8eb0876 // indirect
 	github.com/Azure/azure-storage-blob-go v0.0.0-20180706173141-f0a732ea9441
 	github.com/BurntSushi/toml v0.3.1
+	github.com/SharperShape/entity-id v0.0.0-20210209145331-7ace6f866e77
 	github.com/ajstarks/svgo v0.0.0-20170507103333-2489f1e6d405
 	github.com/akrylysov/algnhsa v0.12.1
 	github.com/aws/aws-lambda-go v1.13.1 // indirect

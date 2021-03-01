@@ -20,7 +20,8 @@ func TestReplaceTokens(t *testing.T) {
 		layer    Layer
 	}
 
-	ctx := context.WithValue(context.Background(), "companyId", "companyId")
+	ctx := context.WithValue(context.Background(), "companyId", "5ec7614283b04c000136d1d4")
+	ctx = context.WithValue(ctx, "projectIDs", []string{"5ec7614283b04c000136d1d4","5a3b757e130000440e6500c3"})
 
 	fn := func(tc tcase) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -70,9 +71,65 @@ func TestReplaceTokens(t *testing.T) {
 		},
 		"replace COMPANY_ID": {
 			sql:      "SELECT * FROM foo WHERE !COMPANY_ID! AND geom && !BBOX!",
-			layer:    Layer{srid: proj.WebMercator},
-			tile:     provider.NewTile(2, 1, 1, 64, proj.WebMercator),
-			expected: "SELECT * FROM foo WHERE company_id='\\xcompanyId' AND geom && ST_MakeEnvelope(-1.017529720390625e+07,-156543.03390625,156543.03390625,1.017529720390625e+07,3857)",
+			layer:    Layer{srid: tegola.WebMercator},
+			tile:     provider.NewTile(2, 1, 1, 64, tegola.WebMercator),
+			expected: "SELECT * FROM foo WHERE company_id='\\x5ec7614283b04c000136d1d4' AND geom && ST_MakeEnvelope(-1.017529720390625e+07,-156543.03390625,156543.03390625,1.017529720390625e+07,3857)",
+		},
+		"replace PROJECT_ID": {
+			sql:      "SELECT * FROM foo WHERE !PROJECT_ID! AND geom && !BBOX!",
+			layer:    Layer{srid: tegola.WebMercator},
+			tile:     provider.NewTile(2, 1, 1, 64, tegola.WebMercator),
+			expected: "SELECT * FROM foo WHERE project_id in (BYTEA('\\x5ec7614283b04c000136d1d4'),BYTEA('\\x5a3b757e130000440e6500c3')) AND geom && ST_MakeEnvelope(-1.017529720390625e+07,-156543.03390625,156543.03390625,1.017529720390625e+07,3857)",
+		},
+		"replace PROJECT_IDS": {
+			sql:      "SELECT * FROM foo WHERE !PROJECT_IDS! AND geom && !BBOX!",
+			layer:    Layer{srid: tegola.WebMercator},
+			tile:     provider.NewTile(2, 1, 1, 64, tegola.WebMercator),
+			expected: "SELECT * FROM foo WHERE ARRAY[BYTEA('\\x5ec7614283b04c000136d1d4'),BYTEA('\\x5a3b757e130000440e6500c3')] && project_ids AND geom && ST_MakeEnvelope(-1.017529720390625e+07,-156543.03390625,156543.03390625,1.017529720390625e+07,3857)",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, fn(tc))
+	}
+}
+
+func TestReplaceTokensIDFailure(t *testing.T) {
+	// Duplicate code but don't want to change too much old code.
+	type tcase struct {
+		sql      string
+		tile     provider.Tile
+		layer    Layer
+	}
+
+	ctx := context.WithValue(context.Background(), "companyId", "5ec7614283b04c000136d1d4a")
+	ctx = context.WithValue(ctx, "projectIDs", []string{"5ec7614283b04c000136d1d4","5a3b757e130000440e6500c3b"})
+
+	fn := func(tc tcase) func(t *testing.T) {
+		return func(t *testing.T) {
+			_, err := replaceTokens(ctx, tc.sql, &tc.layer, tc.tile, true)
+			if err == nil {
+				t.Errorf("error expected")
+				return
+			}
+		}
+	}
+
+	tests := map[string]tcase{
+		"replace COMPANY_ID": {
+			sql:      "SELECT * FROM foo WHERE !COMPANY_ID! AND geom && !BBOX!",
+			layer:    Layer{srid: tegola.WebMercator},
+			tile:     provider.NewTile(2, 1, 1, 64, tegola.WebMercator),
+		},
+		"replace PROJECT_ID": {
+			sql:      "SELECT * FROM foo WHERE !PROJECT_ID! AND geom && !BBOX!",
+			layer:    Layer{srid: tegola.WebMercator},
+			tile:     provider.NewTile(2, 1, 1, 64, tegola.WebMercator),
+		},
+		"replace PROJECT_IDS": {
+			sql:      "SELECT * FROM foo WHERE !PROJECT_IDS! AND geom && !BBOX!",
+			layer:    Layer{srid: tegola.WebMercator},
+			tile:     provider.NewTile(2, 1, 1, 64, tegola.WebMercator),
 		},
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/go-spatial/tegola/provider"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
+	ent "github.com/SharperShape/entity-id"
 )
 
 // genSQL will fill in the SQL field of a layer given a pool, and list of fields.
@@ -91,6 +92,8 @@ const (
 	geomFieldToken        = "!GEOM_FIELD!"
 	geomTypeToken         = "!GEOM_TYPE!"
 	companyIDToken        = "!COMPANY_ID!"
+	projectIDsToken 	  = "!PROJECT_IDS!"
+	projectIDToken        = "!PROJECT_ID!"
 )
 
 // replaceTokens replaces tokens in the provided SQL string
@@ -106,6 +109,8 @@ const (
 // !GEOM_FIELD! - the geom field name
 // !GEOM_TYPE! - the geom field type if defined otherwise ""
 // !COMPANY_ID! - the company id to restrict the scope to
+// !PROJECT_IDS! - the project id to restrict the scope to (project_ids as an array in table)
+// !PROJECT_ID! - the project id to restrict the scope to (single project entity)
 func replaceTokens(ctx context.Context, sql string, lyr *Layer, tile provider.Tile, withBuffer bool) (string, error) {
 	var (
 		extent  *geom.Extent
@@ -168,13 +173,48 @@ func replaceTokens(ctx context.Context, sql string, lyr *Layer, tile provider.Ti
 	uppercaseTokenSQL := uppercaseTokens(sql)
 
 	replaced := tokenReplacer.Replace(uppercaseTokenSQL)
+
+
+
+
 	if ctx != nil {
-		replaced = strings.ReplaceAll(replaced, companyIDToken, fmt.Sprintf(`company_id='\x%s'`, ctx.Value("companyId")))
+		companyID, err := validateAndFormatID(ctx.Value("companyId").(string))
+		if err != nil {
+			return "", err
+		}
+		replaced = strings.ReplaceAll(replaced, companyIDToken, fmt.Sprintf(`company_id=%s`, companyID))
 	} else {
 		replaced = strings.ReplaceAll(replaced, fmt.Sprintf("%s AND ", companyIDToken), "")
 	}
 
+	var projectIDs []string
+	if ctx != nil {
+		p := ctx.Value("projectIDs")
+		if p != nil {
+			for _, rawPID := range p.([]string) {
+				pID, err := validateAndFormatID(rawPID)
+				if err != nil {
+					return "", err
+				}
+				projectIDs = append(projectIDs, "BYTEA(" + pID + ")")
+			}
+		}
+	}
+
+	if projectIDs != nil {
+		replaced = strings.ReplaceAll(replaced, projectIDToken, fmt.Sprintf(`project_id in (%s)`, strings.Join(projectIDs, ",")))
+		replaced = strings.ReplaceAll(replaced, projectIDsToken, fmt.Sprintf(`ARRAY[%s] && project_ids`, strings.Join(projectIDs, ",")))
+	} else {
+		replaced = strings.ReplaceAll(replaced, fmt.Sprintf("%s AND ", projectIDsToken), "")
+	}
+
+
 	return replaced, nil
+}
+
+func validateAndFormatID(input string) (string, error) {
+	_, err := ent.ParseHex(input)
+	return fmt.Sprintf(`'\x%s'`, input), err
 }
 
 var tokenRe = regexp.MustCompile("![a-zA-Z0-9_-]+!")
