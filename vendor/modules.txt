@@ -7,6 +7,9 @@ github.com/Azure/azure-storage-blob-go/2017-07-29/azblob
 # github.com/BurntSushi/toml v0.3.1
 ## explicit
 github.com/BurntSushi/toml
+# github.com/SharperShape/entity-id v0.0.0-20210209145331-7ace6f866e77
+## explicit
+github.com/SharperShape/entity-id
 # github.com/ajstarks/svgo v0.0.0-20170507103333-2489f1e6d405
 ## explicit
 github.com/ajstarks/svgo
